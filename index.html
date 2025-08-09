@@ -110,7 +110,16 @@
     .toc { display:flex; gap:10px; flex-wrap:wrap; margin: 10px 0 0; }
     .toc a { background: rgba(75,179,253,.1); border:1px solid rgba(75,179,253,.25); padding:8px 12px; border-radius: 999px; }
 
-    .badge { font-size: 12px; padding: 4px 8px; border-radius: 8px; background: rgba(75,179,253,.12); color: #bde1ff; }
+</style>
+    /* Consent banner */
+    .consent-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; background: rgba(20,24,33,.97); border-top: 1px solid rgba(124,242,156,.18); box-shadow: 0 -10px 30px rgba(0,0,0,.25); }
+    .consent-inner { width: min(1120px, 94vw); margin: 0 auto; padding: 12px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .consent-copy { color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .consent-actions { display: flex; gap: 10px; }
+    .btn-consent { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:1px solid rgba(124,242,156,.25); background: rgba(124,242,156,.08); color:#eaf2ff; cursor:pointer; }
+    .btn-accept { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color:#0a0f14; border: none; font-weight: 800; }
+    .hidden { display: none; }
+  </style>
 </style>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-BV4DLF8825"></script>
@@ -118,8 +127,20 @@
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-
   gtag('config', 'G-BV4DLF8825');
+</script>
+<!-- GA4 Consent Mode defaults (deny until user makes a choice) -->
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  // Deny all storage by default; will be updated on user choice below
+  gtag('consent', 'default', {
+    'ad_storage': 'denied',
+    'ad_user_data': 'denied',
+    'ad_personalization': 'denied',
+    'analytics_storage': 'denied',
+    'wait_for_update': 500
+  });
 </script>
 </head>
 <body>
@@ -291,6 +312,19 @@
     <div>© <span id="year"></span> 67stepswithtailopez.com • Independent review & guide • All trademarks belong to their owners.</div>
   </footer>
 
+  <!-- Consent banner -->
+  <div id="consent-bar" class="consent-bar hidden" role="dialog" aria-live="polite" aria-label="Cookie and analytics consent">
+    <div class="consent-inner">
+      <div class="consent-copy">
+        We use basic analytics (GA4) to improve this site. You can accept or decline. You can change your choice anytime by clearing site data.
+      </div>
+      <div class="consent-actions">
+        <button id="consent-decline" class="btn-consent" type="button">Decline</button>
+        <button id="consent-accept" class="btn-consent btn-accept" type="button">Accept</button>
+      </div>
+    </div>
+  </div>
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -322,7 +356,77 @@
   </script>
 
   <script>
+    // Footer year
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // ---- Consent Mode + Banner ----
+    (function(){
+      const KEY = 'ga_consent_choice_v1';
+      const bar = document.getElementById('consent-bar');
+      const btnAccept = document.getElementById('consent-accept');
+      const btnDecline = document.getElementById('consent-decline');
+
+      function updateConsent(granted){
+        if (typeof gtag === 'function') {
+          gtag('consent', 'update', {
+            'ad_storage': granted ? 'granted' : 'denied',
+            'ad_user_data': granted ? 'granted' : 'denied',
+            'ad_personalization': granted ? 'granted' : 'denied',
+            'analytics_storage': granted ? 'granted' : 'denied'
+          });
+        }
+      }
+
+      // Load saved choice
+      const saved = localStorage.getItem(KEY);
+      if (saved === 'accept') {
+        updateConsent(true);
+      } else if (saved === 'decline') {
+        updateConsent(false);
+      } else {
+        // No choice yet: show banner
+        bar.classList.remove('hidden');
+      }
+
+      // Handlers
+      if (btnAccept) btnAccept.addEventListener('click', function(){
+        localStorage.setItem(KEY, 'accept');
+        updateConsent(true);
+        bar.classList.add('hidden');
+      });
+      if (btnDecline) btnDecline.addEventListener('click', function(){
+        localStorage.setItem(KEY, 'decline');
+        updateConsent(false);
+        bar.classList.add('hidden');
+      });
+    })();
+
+    // ---- GA4 Affiliate Click Tracking ----
+    (function(){
+      function isAffiliateLink(a){
+        try {
+          const href = a.getAttribute('href') || '';
+          return href.indexOf('https://67steps.com/new67steps/') === 0 || href.indexOf('67steps.com/new67steps/') >= 0;
+        } catch(e){ return false; }
+      }
+
+      document.addEventListener('click', function(e){
+        const a = e.target.closest && e.target.closest('a');
+        if (!a) return;
+        if (!isAffiliateLink(a)) return;
+
+        // Build parameters
+        const params = {
+          link_url: a.href,
+          link_text: (a.textContent || '').trim().slice(0, 100),
+          location: window.location.pathname
+        };
+
+        if (typeof gtag === 'function') {
+          gtag('event', 'affiliate_click', params);
+        }
+      });
+    })();
   </script>
 </body>
 </html>
