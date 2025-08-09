@@ -254,11 +254,11 @@
       <p class="lede">Short videos can help you decide if the delivery and content resonate. These are public overviews to preview the vibe. Always verify latest details on the official page.</p>
 
       <div class="yt-wrap">
-        <iframe class="yt-iframe" src="https://www.youtube.com/embed/pTb4NWBfiRU?si=ravG4Ym1Ya2fxGl_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe id="yt1" class="yt-iframe" src="https://www.youtube.com/embed/pTb4NWBfiRU?si=ravG4Ym1Ya2fxGl_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
 
       <div class="yt-wrap" style="margin-top:16px">
-        <iframe class="yt-iframe" src="https://www.youtube.com/embed/bKcsUwh-xKc?si=smOrixpcpBoA_kpS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        <iframe id="yt2" class="yt-iframe" src="https://www.youtube.com/embed/bKcsUwh-xKc?si=smOrixpcpBoA_kpS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
       </div>
 
       <p style="margin-top:14px"><small>Note: Videos are embedded from YouTube.</small></p>
@@ -426,6 +426,57 @@
           gtag('event', 'affiliate_click', params);
         }
       });
+    })();
+  </script>
+
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    // ---- GA4 YouTube Player Events ----
+    var ytPlayers = {};
+    function onYouTubeIframeAPIReady(){
+      ['yt1','yt2'].forEach(function(id){
+        var el = document.getElementById(id);
+        if(!el || !window.YT || !YT.Player) return;
+        ytPlayers[id] = new YT.Player(id, {
+          events: {
+            'onStateChange': function(e){
+              if (typeof gtag !== 'function') return;
+              var state = e.data;
+              if (state === YT.PlayerState.PLAYING){
+                gtag('event','video_play',{ video_id: id, location: window.location.pathname });
+              } else if (state === YT.PlayerState.PAUSED){
+                gtag('event','video_pause',{ video_id: id, location: window.location.pathname });
+              } else if (state === YT.PlayerState.ENDED){
+                gtag('event','video_complete',{ video_id: id, location: window.location.pathname });
+              }
+            }
+          }
+        });
+      });
+    }
+  </script>
+  <script>
+    // ---- GA4 Scroll Depth (25/50/75/100) ----
+    (function(){
+      var fired = {};
+      var marks = [25,50,75,100];
+      function onScroll(){
+        var h = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+        var win = window.innerHeight || document.documentElement.clientHeight;
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+        var percent = Math.round(((scrollTop + win) / h) * 100);
+        marks.forEach(function(m){
+          if(percent >= m && !fired[m]){
+            fired[m] = true;
+            if (typeof gtag === 'function'){
+              gtag('event','scroll_depth',{ percent: m, location: window.location.pathname });
+            }
+          }
+        });
+        if (fired[100]) window.removeEventListener('scroll', onScroll);
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
     })();
   </script>
 </body>
