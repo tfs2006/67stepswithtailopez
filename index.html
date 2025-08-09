@@ -126,14 +126,15 @@
     .nav-open .nav-toggle .bar:nth-child(2){ opacity:0; }
     .nav-open .nav-toggle .bar:nth-child(3){ transform: translateY(-7px) rotate(-45deg); }
 
+    body.nav-open { overflow: hidden; }
+
     /* Mobile header fixes */
     @media (max-width: 640px) {
       .nav { padding: 10px 8px; gap: 10px; position: relative; }
       .nav .cta-btn { display: none; } /* keep only the sticky CTA on small screens */
       .nav-toggle { display:block; }
-      /* Hide the nav links by default on phones */
+      /* Dropdown panel (animated) */
       #primary-nav.nav-links {
-        display: none;
         position: absolute;
         top: 52px; /* below header row */
         right: 8px;
@@ -145,9 +146,23 @@
         box-shadow: var(--shadow);
         z-index: 70;
         gap: 0;
+        display: flex;
+        flex-direction: column;
+
+        /* animation states */
+        opacity: 0;
+        transform: translateY(-8px);
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .18s ease, transform .18s ease, visibility 0s linear .18s;
       }
-      /* When open, show as vertical menu */
-      #primary-nav.nav-links.open { display: flex; flex-direction: column; }
+      #primary-nav.nav-links.open {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+        pointer-events: auto;
+        transition-delay: 0s, 0s, 0s;
+      }
       #primary-nav.nav-links a {
         display:block;
         padding: 10px 12px;
@@ -157,6 +172,24 @@
         white-space: normal;
       }
       #primary-nav.nav-links a:hover { background: rgba(75,179,253,.08); text-decoration: none; }
+
+      /* Backdrop behind the dropdown */
+      .nav-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.35);
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
+        z-index: 60;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .18s ease, visibility 0s linear .18s;
+      }
+      body.nav-open .nav-backdrop {
+        opacity: 1;
+        visibility: visible;
+        transition-delay: 0s, 0s;
+      }
       .brand { gap: 10px; }
       .brand-logo { width: 26px; height: 26px; border-radius: 8px; }
       .hero { padding-top: 76px; } /* ensure content isn't overlapped by sticky header */
@@ -203,6 +236,7 @@
         <a href="#faq">FAQs</a>
         <a class="cta-btn" href="https://67steps.com/new67steps/A3106288" rel="nofollow sponsored" target="_blank">Start the 67 Steps</a>
       </nav>
+      <div class="nav-backdrop"></div>
     </div>
   </header>
 
@@ -646,10 +680,11 @@
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
-    // ---- Mobile menu toggle ----
+    // ---- Mobile menu toggle (with backdrop + scroll lock) ----
     (function(){
       var btn = document.querySelector('.nav-toggle');
       var nav = document.getElementById('primary-nav');
+      var backdrop = document.querySelector('.nav-backdrop');
       if(!btn || !nav) return;
 
       function closeMenu(){
@@ -668,17 +703,27 @@
         if (isOpen) closeMenu(); else openMenu();
       });
 
-      // Close when clicking a link or outside
+      // Close when clicking a link
       nav.addEventListener('click', function(e){
         if(e.target.tagName.toLowerCase() === 'a'){ closeMenu(); }
       });
-      document.addEventListener('click', function(e){
-        if (!nav.contains(e.target) && !btn.contains(e.target)) closeMenu();
-      });
+
+      // Close when clicking the backdrop
+      if (backdrop) {
+        backdrop.addEventListener('click', closeMenu);
+      }
 
       // Close with ESC
       document.addEventListener('keydown', function(e){
         if (e.key === 'Escape') closeMenu();
+      });
+
+      // Close when tapping outside the nav/toggle
+      document.addEventListener('click', function(e){
+        if (!document.body.classList.contains('nav-open')) return;
+        if (nav.contains(e.target) || btn.contains(e.target)) return;
+        if (backdrop && backdrop.contains(e.target)) return; // handled above
+        closeMenu();
       });
     })();
   </script>
