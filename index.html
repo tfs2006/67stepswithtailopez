@@ -442,7 +442,7 @@
       });
     })();
 
-    // ---- GA4 Affiliate Click Tracking (enhanced + auto-UTM) ----
+    // ---- GA4 Affiliate Click Tracking (enhanced + auto-UTM + DOM observer) ----
     (function(){
       var AFF_PREF = 'https://67steps.com/new67steps/';
 
@@ -507,32 +507,70 @@
         }
       }
 
-      // On DOM ready, auto-append UTM params to all affiliate links
-      function enhanceAffiliateLinks(){
+      // Enhance a single <a> element if it's an affiliate link
+      function enhanceLink(a, utms){
+        if (!isAffiliateLink(a)) return;
+        // ensure rel attributes for compliance
+        var rel = (a.getAttribute('rel') || '').toLowerCase();
+        var parts = rel.split(/\s+/).filter(Boolean);
+        ['nofollow','sponsored'].forEach(function(flag){
+          if (parts.indexOf(flag) === -1) parts.push(flag);
+        });
+        a.setAttribute('rel', parts.join(' '));
+
+        // merge UTM params into href
+        var updated = mergeUtmsIntoUrl(a.href, utms);
+        if (updated !== a.href) {
+          a.href = updated;
+        }
+      }
+
+      // Enhance all affiliate links in a given root node (defaults to document)
+      function enhanceAffiliateLinks(root){
         var utms = getTrafficContext();
-        document.querySelectorAll('a[href]').forEach(function(a){
-          if (!isAffiliateLink(a)) return;
-
-          // ensure rel attributes for compliance
-          var rel = (a.getAttribute('rel') || '').toLowerCase();
-          var parts = rel.split(/\s+/).filter(Boolean);
-          ['nofollow','sponsored'].forEach(function(flag){
-            if (parts.indexOf(flag) === -1) parts.push(flag);
-          });
-          a.setAttribute('rel', parts.join(' '));
-
-          // merge UTM params into href
-          var updated = mergeUtmsIntoUrl(a.href, utms);
-          if (updated !== a.href) {
-            a.href = updated;
-          }
+        (root || document).querySelectorAll('a[href]').forEach(function(a){
+          enhanceLink(a, utms);
         });
       }
 
+      // Initial pass
       if (document.readyState === 'loading'){
-        document.addEventListener('DOMContentLoaded', enhanceAffiliateLinks);
+        document.addEventListener('DOMContentLoaded', function(){ enhanceAffiliateLinks(document); });
       } else {
-        enhanceAffiliateLinks();
+        enhanceAffiliateLinks(document);
+      }
+
+      // Observe DOM for future links (dynamic inserts)
+      try {
+        var observer = new MutationObserver(function(mutations){
+          var utms = getTrafficContext();
+          mutations.forEach(function(m){
+            if (m.type === 'childList') {
+              m.addedNodes.forEach(function(node){
+                if (!node) return;
+                if (node.nodeType === 1) { // ELEMENT_NODE
+                  if (node.matches && node.matches('a[href]')) {
+                    enhanceLink(node, utms);
+                  }
+                  // Also check any anchors within this subtree
+                  var anchors = node.querySelectorAll ? node.querySelectorAll('a[href]') : [];
+                  anchors.forEach(function(a){ enhanceLink(a, utms); });
+                }
+              });
+            } else if (m.type === 'attributes' && m.attributeName === 'href' && m.target && m.target.matches && m.target.matches('a')) {
+              enhanceLink(m.target, utms);
+            }
+          });
+        });
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['href']
+        });
+      } catch(e) {
+        // No MutationObserver (very old browsers) — periodic fallback
+        setInterval(function(){ enhanceAffiliateLinks(document); }, 2000);
       }
 
       // Click tracking → GA4 event with traffic context
