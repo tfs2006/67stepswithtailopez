@@ -352,6 +352,49 @@
     }
   }
   </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "VideoObject",
+        "name": "Tai Lopez - 67 Steps Overview",
+        "description": "Overview video related to the 67 Steps program by Tai Lopez.",
+        "thumbnailUrl": ["https://i.ytimg.com/vi/pTb4NWBfiRU/hqdefault.jpg"],
+        "uploadDate": "2015-01-01",
+        "embedUrl": "https://www.youtube.com/embed/pTb4NWBfiRU",
+        "url": "https://www.youtube.com/watch?v=pTb4NWBfiRU",
+        "publisher": {
+          "@type": "Organization",
+          "name": "YouTube"
+        },
+        "potentialAction": {
+          "@type": "WatchAction",
+          "target": ["https://www.youtube.com/watch?v=pTb4NWBfiRU"]
+        },
+        "isFamilyFriendly": true
+      },
+      {
+        "@type": "VideoObject",
+        "name": "67 Steps - Perspective/Review Video",
+        "description": "Independent perspective or testimonial-style video related to 67 Steps.",
+        "thumbnailUrl": ["https://i.ytimg.com/vi/bKcsUwh-xKc/hqdefault.jpg"],
+        "uploadDate": "2015-01-01",
+        "embedUrl": "https://www.youtube.com/embed/bKcsUwh-xKc",
+        "url": "https://www.youtube.com/watch?v=bKcsUwh-xKc",
+        "publisher": {
+          "@type": "Organization",
+          "name": "YouTube"
+        },
+        "potentialAction": {
+          "@type": "WatchAction",
+          "target": ["https://www.youtube.com/watch?v=bKcsUwh-xKc"]
+        },
+        "isFamilyFriendly": true
+      }
+    ]
+  }
+  </script>
 
   <script>
     // Footer year
@@ -399,7 +442,7 @@
       });
     })();
 
-    // ---- GA4 Affiliate Click Tracking ----
+    // ---- GA4 Affiliate Click Tracking (enhanced) ----
     (function(){
       function isAffiliateLink(a){
         try {
@@ -407,18 +450,30 @@
           return href.indexOf('https://67steps.com/new67steps/') === 0 || href.indexOf('67steps.com/new67steps/') >= 0;
         } catch(e){ return false; }
       }
+      function getParam(name){
+        const m = new RegExp('[?&]'+name+'=([^&#]*)').exec(location.search);
+        return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : '';
+      }
+      function getTrafficContext(){
+        return {
+          utm_source: getParam('utm_source'),
+          utm_medium: getParam('utm_medium'),
+          utm_campaign: getParam('utm_campaign'),
+          utm_term: getParam('utm_term'),
+          utm_content: getParam('utm_content'),
+          referrer: document.referrer || ''
+        };
+      }
 
       document.addEventListener('click', function(e){
         const a = e.target.closest && e.target.closest('a');
-        if (!a) return;
-        if (!isAffiliateLink(a)) return;
+        if (!a || !isAffiliateLink(a)) return;
 
-        // Build parameters
-        const params = {
+        const params = Object.assign({
           link_url: a.href,
           link_text: (a.textContent || '').trim().slice(0, 100),
           location: window.location.pathname
-        };
+        }, getTrafficContext());
 
         if (typeof gtag === 'function') {
           gtag('event', 'affiliate_click', params);
