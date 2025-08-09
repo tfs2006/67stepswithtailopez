@@ -1,0 +1,70 @@
+name: build-and-deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute build id
+        id: ids
+        run: echo "BUILD_ID=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare dist & cache-bust
+        run: |
+          mkdir -p dist
+          cp -a * dist/ || true
+          cd dist
+          # Inject a build stamp into <head>
+          sed -i 's|<head>|<head>\n  <meta name="x-build" content="'${{ steps.ids.outputs.BUILD_ID }}'" />|' index.html
+          # Cache-bust favicon + OG image
+          sed -i 's|href="favicon.ico"|href="favicon.ico?v='${{ steps.ids.outputs.BUILD_ID }}'"|g' index.html
+          sed -i 's|content="https://67stepswithtailopez.com/og-image.jpg"|content="https://67stepswithtailopez.com/og-image.jpg?v='${{ steps.ids.outputs.BUILD_ID }}'"|g' index.html
+
+      - name: Minify HTML (inline CSS/JS too)
+        run: |
+          cd dist
+          npm -g i html-minifier-terser >/dev/null 2>&1 || true
+          html-minifier-terser \
+            --collapse-whitespace \
+            --remove-comments \
+            --remove-optional-tags \
+            --remove-redundant-attributes \
+            --remove-script-type-attributes \
+            --remove-style-link-type-attributes \
+            --minify-css true \
+            --minify-js true \
+            --input-dir . \
+            --output-dir . \
+            --file-ext html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
