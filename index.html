@@ -119,28 +119,44 @@
     .btn-accept { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color:#0a0f14; border: none; font-weight: 800; }
     .hidden { display: none; }
 
+    .nav-toggle{ display:none; background:transparent; border:0; padding:8px; border-radius:10px; }
+    .nav-toggle:focus{ outline:2px solid rgba(124,242,156,.6); outline-offset:2px; }
+    .nav-toggle .bar{ display:block; width:24px; height:2px; background:#eaf2ff; margin:5px 0; border-radius:2px; transition:transform .2s ease, opacity .2s ease; }
+    .nav-open .nav-toggle .bar:nth-child(1){ transform: translateY(7px) rotate(45deg); }
+    .nav-open .nav-toggle .bar:nth-child(2){ opacity:0; }
+    .nav-open .nav-toggle .bar:nth-child(3){ transform: translateY(-7px) rotate(-45deg); }
+
     /* Mobile header fixes */
     @media (max-width: 640px) {
-      .nav { padding: 10px 8px; gap: 10px; flex-wrap: wrap; }
+      .nav { padding: 10px 8px; gap: 10px; position: relative; }
       .nav .cta-btn { display: none; } /* keep only the sticky CTA on small screens */
-      .nav-links {
-        width: 100%;
-        display: flex;
-        gap: 12px;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding: 6px 2px 8px;
-        scrollbar-width: none;
+      .nav-toggle { display:block; }
+      /* Hide the nav links by default on phones */
+      #primary-nav.nav-links {
+        display: none;
+        position: absolute;
+        top: 52px; /* below header row */
+        right: 8px;
+        left: 8px;
+        background: var(--card);
+        border: 1px solid rgba(124,242,156,.18);
+        border-radius: 12px;
+        padding: 10px;
+        box-shadow: var(--shadow);
+        z-index: 70;
+        gap: 0;
       }
-      .nav-links::-webkit-scrollbar { display: none; }
-      .nav-links a {
-        white-space: nowrap;
-        font-size: 14px;
-        padding: 6px 10px;
-        background: rgba(75,179,253,.08);
-        border: 1px solid rgba(75,179,253,.18);
-        border-radius: 999px;
+      /* When open, show as vertical menu */
+      #primary-nav.nav-links.open { display: flex; flex-direction: column; }
+      #primary-nav.nav-links a {
+        display:block;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: transparent;
+        border: 0;
+        white-space: normal;
       }
+      #primary-nav.nav-links a:hover { background: rgba(75,179,253,.08); text-decoration: none; }
       .brand { gap: 10px; }
       .brand-logo { width: 26px; height: 26px; border-radius: 8px; }
       .hero { padding-top: 76px; } /* ensure content isn't overlapped by sticky header */
@@ -175,7 +191,10 @@
         <div class="brand-logo" aria-hidden="true"></div>
         <div>67stepswithtailopez<span style="color:var(--brand-2)">.com</span></div>
       </div>
-      <nav class="nav-links" aria-label="Primary">
+      <button class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Menu">
+        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+      </button>
+      <nav id="primary-nav" class="nav-links" aria-label="Primary">
         <a href="#overview">Overview</a>
         <a href="#what-you-get">What You Get</a>
         <a href="#review">Review</a>
@@ -627,6 +646,42 @@
 
   <script src="https://www.youtube.com/iframe_api"></script>
   <script>
+    // ---- Mobile menu toggle ----
+    (function(){
+      var btn = document.querySelector('.nav-toggle');
+      var nav = document.getElementById('primary-nav');
+      if(!btn || !nav) return;
+
+      function closeMenu(){
+        document.body.classList.remove('nav-open');
+        nav.classList.remove('open');
+        btn.setAttribute('aria-expanded','false');
+      }
+      function openMenu(){
+        document.body.classList.add('nav-open');
+        nav.classList.add('open');
+        btn.setAttribute('aria-expanded','true');
+      }
+
+      btn.addEventListener('click', function(){
+        var isOpen = nav.classList.contains('open');
+        if (isOpen) closeMenu(); else openMenu();
+      });
+
+      // Close when clicking a link or outside
+      nav.addEventListener('click', function(e){
+        if(e.target.tagName.toLowerCase() === 'a'){ closeMenu(); }
+      });
+      document.addEventListener('click', function(e){
+        if (!nav.contains(e.target) && !btn.contains(e.target)) closeMenu();
+      });
+
+      // Close with ESC
+      document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') closeMenu();
+      });
+    })();
+  </script>
     // ---- GA4 YouTube Player Events ----
     var ytPlayers = {};
     function onYouTubeIframeAPIReady(){
