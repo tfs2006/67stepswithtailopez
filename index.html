@@ -442,20 +442,33 @@
       });
     })();
 
-    // ---- GA4 Affiliate Click Tracking (enhanced) ----
+    // ---- GA4 Affiliate Click Tracking (enhanced + auto-UTM) ----
     (function(){
+      var AFF_PREF = 'https://67steps.com/new67steps/';
+
       function isAffiliateLink(a){
         try {
-          const href = a.getAttribute('href') || '';
-          return href.indexOf('https://67steps.com/new67steps/') === 0 || href.indexOf('67steps.com/new67steps/') >= 0;
+          var href = a.getAttribute('href') || '';
+          return href.indexOf(AFF_PREF) === 0 || href.indexOf('67steps.com/new67steps/') >= 0;
         } catch(e){ return false; }
       }
+
       function getParam(name){
-        const m = new RegExp('[?&]'+name+'=([^&#]*)').exec(location.search);
+        var m = new RegExp('[?&]'+name+'=([^&#]*)').exec(location.search);
         return m ? decodeURIComponent(m[1].replace(/\+/g,' ')) : '';
       }
-      function getTrafficContext(){
+
+      // Defaults if missing on landing URL
+      function defaultUtms(){
         return {
+          utm_source: '67stepswithtailopez.com',
+          utm_medium: 'affiliate',
+          utm_campaign: 'homepage'
+        };
+      }
+
+      function getTrafficContext(){
+        var ctx = {
           utm_source: getParam('utm_source'),
           utm_medium: getParam('utm_medium'),
           utm_campaign: getParam('utm_campaign'),
@@ -463,17 +476,82 @@
           utm_content: getParam('utm_content'),
           referrer: document.referrer || ''
         };
+        // Fill in sensible defaults if not provided
+        var d = defaultUtms();
+        if (!ctx.utm_source) ctx.utm_source = d.utm_source;
+        if (!ctx.utm_medium) ctx.utm_medium = d.utm_medium;
+        if (!ctx.utm_campaign) ctx.utm_campaign = d.utm_campaign;
+        return ctx;
       }
 
+      // Merge UTM params into a URL if not already present
+      function mergeUtmsIntoUrl(href, utms){
+        try {
+          var url = new URL(href);
+          ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){
+            if (utms[k] && !url.searchParams.get(k)) {
+              url.searchParams.set(k, utms[k]);
+            }
+          });
+          return url.toString();
+        } catch(e){
+          // Fallback: append query string crudely
+          var qs = [];
+          ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){
+            if (utms[k] && href.indexOf(k+'=') === -1) {
+              qs.push(encodeURIComponent(k)+'='+encodeURIComponent(utms[k]));
+            }
+          });
+          if (qs.length === 0) return href;
+          return href + (href.indexOf('?') === -1 ? '?' : '&') + qs.join('&');
+        }
+      }
+
+      // On DOM ready, auto-append UTM params to all affiliate links
+      function enhanceAffiliateLinks(){
+        var utms = getTrafficContext();
+        document.querySelectorAll('a[href]').forEach(function(a){
+          if (!isAffiliateLink(a)) return;
+
+          // ensure rel attributes for compliance
+          var rel = (a.getAttribute('rel') || '').toLowerCase();
+          var parts = rel.split(/\s+/).filter(Boolean);
+          ['nofollow','sponsored'].forEach(function(flag){
+            if (parts.indexOf(flag) === -1) parts.push(flag);
+          });
+          a.setAttribute('rel', parts.join(' '));
+
+          // merge UTM params into href
+          var updated = mergeUtmsIntoUrl(a.href, utms);
+          if (updated !== a.href) {
+            a.href = updated;
+          }
+        });
+      }
+
+      if (document.readyState === 'loading'){
+        document.addEventListener('DOMContentLoaded', enhanceAffiliateLinks);
+      } else {
+        enhanceAffiliateLinks();
+      }
+
+      // Click tracking → GA4 event with traffic context
       document.addEventListener('click', function(e){
-        const a = e.target.closest && e.target.closest('a');
+        var a = e.target.closest && e.target.closest('a');
         if (!a || !isAffiliateLink(a)) return;
 
-        const params = Object.assign({
+        var ctx = getTrafficContext();
+        var params = {
           link_url: a.href,
           link_text: (a.textContent || '').trim().slice(0, 100),
-          location: window.location.pathname
-        }, getTrafficContext());
+          location: window.location.pathname,
+          utm_source: ctx.utm_source,
+          utm_medium: ctx.utm_medium,
+          utm_campaign: ctx.utm_campaign,
+          utm_term: ctx.utm_term,
+          utm_content: ctx.utm_content,
+          referrer: ctx.referrer
+        };
 
         if (typeof gtag === 'function') {
           gtag('event', 'affiliate_click', params);
