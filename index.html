@@ -118,6 +118,33 @@
     .btn-consent { display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; border:1px solid rgba(124,242,156,.25); background: rgba(124,242,156,.08); color:#eaf2ff; cursor:pointer; }
     .btn-accept { background: linear-gradient(135deg, var(--brand), var(--brand-2)); color:#0a0f14; border: none; font-weight: 800; }
     .hidden { display: none; }
+
+    /* Mobile header fixes */
+    @media (max-width: 640px) {
+      .nav { padding: 10px 8px; gap: 10px; flex-wrap: wrap; }
+      .nav .cta-btn { display: none; } /* keep only the sticky CTA on small screens */
+      .nav-links {
+        width: 100%;
+        display: flex;
+        gap: 12px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 6px 2px 8px;
+        scrollbar-width: none;
+      }
+      .nav-links::-webkit-scrollbar { display: none; }
+      .nav-links a {
+        white-space: nowrap;
+        font-size: 14px;
+        padding: 6px 10px;
+        background: rgba(75,179,253,.08);
+        border: 1px solid rgba(75,179,253,.18);
+        border-radius: 999px;
+      }
+      .brand { gap: 10px; }
+      .brand-logo { width: 26px; height: 26px; border-radius: 8px; }
+      .hero { padding-top: 76px; } /* ensure content isn't overlapped by sticky header */
+    }
   </style>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-BV4DLF8825"></script>
