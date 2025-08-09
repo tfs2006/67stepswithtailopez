@@ -21,20 +21,34 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Compute build id
         id: ids
-        run: echo "BUILD_ID=$(date +%s)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "BUILD_ID=$(date +%s)" >> "$GITHUB_OUTPUT"
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Prepare dist & cache-bust
         run: |
+          set -e
           mkdir -p dist
+          shopt -s dotglob
           cp -a * dist/ || true
           cd dist
-          # Inject a build stamp into <head>
-          sed -i 's|<head>|<head>\n  <meta name="x-build" content="'${{ steps.ids.outputs.BUILD_ID }}'" />|' index.html
-          # Cache-bust favicon + OG image
-          sed -i 's|href="favicon.ico"|href="favicon.ico?v='${{ steps.ids.outputs.BUILD_ID }}'"|g' index.html
-          sed -i 's|content="https://67stepswithtailopez.com/og-image.jpg"|content="https://67stepswithtailopez.com/og-image.jpg?v='${{ steps.ids.outputs.BUILD_ID }}'"|g' index.html
+
+          # Inject build stamp into <head>
+          sed -i 's|<head>|<head>\n  <meta name="x-build" content="${{ steps.ids.outputs.BUILD_ID }}-${{ steps.ids.outputs.SHORT_SHA }}" />|' index.html
+
+          # Append ?v=BUILD_ID to most asset refs in index.html (href/src) if they don't already have a query
+          add_ver () { ext="$1"; sed -i -E "s|(href|src)=(\"[^\"]+\\.${ext})(\")|\\1=\\2?v=${{ steps.ids.outputs.BUILD_ID }}\\3|g" index.html; }
+          for ext in css js png jpg jpeg webp svg ico gif json mp4 webm; do add_ver "$ext"; done
+
+          # Also handle absolute OG image URL
+          sed -i 's|content="https://67stepswithtailopez.com/og-image.jpg"|content="https://67stepswithtailopez.com/og-image.jpg?v=${{ steps.ids.outputs.BUILD_ID }}"|g' index.html
 
       - name: Minify HTML (inline CSS/JS too)
         run: |
